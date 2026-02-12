@@ -27,6 +27,9 @@ export class ActivityLog {
     @Column({ type: 'text', nullable: true })
     url: string;
 
+    @Column({ type: 'timestamp', nullable: true })
+    screenshot_timestamp: Date;
+
     @ManyToOne('WorkSession', 'activity_logs')
     session: WorkSession;
 }

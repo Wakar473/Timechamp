@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsOptional, IsString, Min, IsArray, ValidateNested, IsISO8601 } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min, IsArray, ValidateNested, IsISO8601, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ActivityType } from '../../../common/enums';
 
@@ -17,6 +17,10 @@ export class LogActivityDto {
     @IsOptional()
     @IsString()
     url?: string;
+
+    @IsOptional()
+    @IsDateString()
+    screenshot_timestamp?: string;
 }
 
 export class ActivityEventDto {
@@ -37,6 +41,10 @@ export class ActivityEventDto {
     @IsOptional()
     @IsString()
     url?: string;
+
+    @IsOptional()
+    @IsDateString()
+    screenshot_timestamp?: string;
 }
 
 export class BatchActivityDto {

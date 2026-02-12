@@ -10,6 +10,9 @@ import { ActivityModule } from './modules/activity/activity.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { HealthModule } from './modules/health/health.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
     imports: [
@@ -17,6 +20,10 @@ import { HealthModule } from './modules/health/health.module';
             isGlobal: true,
             load: [databaseConfig, redisConfig, jwtConfig],
         }),
+        ThrottlerModule.forRoot([{
+            ttl: 10000, // 10 seconds
+            limit: 1,    // 1 request per 10 seconds per user
+        }]),
         TypeOrmModule.forRootAsync({
             useFactory: () => ({
                 type: 'postgres',
@@ -33,6 +40,8 @@ import { HealthModule } from './modules/health/health.module';
         AuthModule,
         SessionsModule,
         ActivityModule,
+        ProjectsModule,
+        ReportsModule,
         WebsocketModule,
         JobsModule,
         HealthModule,

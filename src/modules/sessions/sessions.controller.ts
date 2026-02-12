@@ -3,6 +3,7 @@ import { SessionsService } from './sessions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { StartSessionDto } from './dto/session.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('sessions')
 @UseGuards(JwtAuthGuard)
