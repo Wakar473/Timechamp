@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from 'typeorm';
-import { WorkSession } from './work-session.entity';
+import type { WorkSession } from './work-session.entity';
 import { ActivityType } from '../common/enums';
 export { ActivityType };
 

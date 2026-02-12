@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from 'typeorm';
-import { User } from './user.entity';
+import type { User } from './user.entity';
 import { AlertType } from '../common/enums';
 export { AlertType };
 

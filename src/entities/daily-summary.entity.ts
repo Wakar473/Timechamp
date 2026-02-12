@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Index } from 'typeorm';
-import { Organization } from './organization.entity';
-import { User } from './user.entity';
+import type { Organization } from './organization.entity';
+import type { User } from './user.entity';
 
 @Entity('daily_summaries')
 @Index(['user_id', 'date'], { unique: true })

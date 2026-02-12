@@ -1,7 +1,8 @@
-const axios = require('axios');
 require('dotenv').config();
+const axios = require('axios');
+const { Client } = require('pg');
 
-const API_URL = 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 // Test data
 const TEST_USER = {

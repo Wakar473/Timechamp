@@ -1,8 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
-import { User } from './user.entity';
-import { Project } from './project.entity';
-import { WorkSession } from './work-session.entity';
-import { DailySummary } from './daily-summary.entity';
+import type { User } from './user.entity';
+import type { Project } from './project.entity';
+import type { WorkSession } from './work-session.entity';
+import type { DailySummary } from './daily-summary.entity';
 
 @Entity('organizations')
 export class Organization {

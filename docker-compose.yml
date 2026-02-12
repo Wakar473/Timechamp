@@ -35,9 +35,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: workpulse_api
+    container_name: workpulse_api_fixed
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432

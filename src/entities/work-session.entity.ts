@@ -1,8 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, OneToMany, Index, VersionColumn } from 'typeorm';
-import { Organization } from './organization.entity';
-import { User } from './user.entity';
-import { Project } from './project.entity';
-import { ActivityLog } from './activity-log.entity';
+import type { Organization } from './organization.entity';
+import type { User } from './user.entity';
+import type { Project } from './project.entity';
+import type { ActivityLog } from './activity-log.entity';
 import { SessionStatus } from '../common/enums';
 export { SessionStatus };
 

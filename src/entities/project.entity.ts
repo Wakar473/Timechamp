@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from 'typeorm';
-import { Organization } from './organization.entity';
-import { User } from './user.entity';
+import type { Organization } from './organization.entity';
+import type { User } from './user.entity';
 
 @Entity('projects')
 export class Project {

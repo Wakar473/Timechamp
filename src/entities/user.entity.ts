@@ -1,8 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, OneToMany, Index } from 'typeorm';
-import { Organization } from './organization.entity';
-import { WorkSession } from './work-session.entity';
-import { DailySummary } from './daily-summary.entity';
-import { Alert } from './alert.entity';
+import type { Organization } from './organization.entity';
+import type { WorkSession } from './work-session.entity';
+import type { DailySummary } from './daily-summary.entity';
+import type { Alert } from './alert.entity';
 import { UserRole, UserStatus } from '../common/enums';
 export { UserRole, UserStatus };
 
