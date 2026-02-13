@@ -24,7 +24,9 @@ export class UsersService {
             .select([
                 'user.id',
                 'user.email',
-                'user.name',
+                'user.first_name',
+                'user.last_name',
+                'user.employee_id',
                 'user.role',
                 'user.status',
                 'user.manager_id',
@@ -97,7 +99,9 @@ export class UsersService {
             .select([
                 'user.id',
                 'user.email',
-                'user.name',
+                'user.first_name',
+                'user.last_name',
+                'user.employee_id',
                 'user.role',
                 'user.manager_id',
             ]);
@@ -109,12 +113,12 @@ export class UsersService {
         }
         // Admins see all employees (no additional filter)
 
-        return await query.orderBy('user.name', 'ASC').getMany();
+        return await query.orderBy('user.first_name', 'ASC').getMany();
     }
 
     /**
      * Invite a new user
-     * Admin: Can invite anyone and assign to any manager
+     * Admin: Can invite anyone (managers, employees) and assign employees to any manager
      * Manager: Can only invite employees to their own team
      */
     async inviteUser(
@@ -136,7 +140,7 @@ export class UsersService {
             inviteDto.manager_id = invitedBy.id;
         }
 
-        // Validate manager assignment for employees
+        // Validate manager assignment ONLY for employees
         if (inviteDto.role === UserRole.EMPLOYEE) {
             if (!inviteDto.manager_id) {
                 throw new BadRequestException('Employees must be assigned to a manager');
@@ -159,6 +163,9 @@ export class UsersService {
             if (manager.role !== UserRole.MANAGER && manager.role !== UserRole.ADMIN) {
                 throw new BadRequestException('Assigned manager must have MANAGER or ADMIN role');
             }
+        } else {
+            // Managers and Admins don't have a manager_id
+            inviteDto.manager_id = null;
         }
 
         // Check if user already exists
