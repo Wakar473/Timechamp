@@ -24,3 +24,8 @@ export enum AlertType {
     IDLE = 'idle',
     OVERTIME = 'overtime',
 }
+
+export enum ProjectType {
+    NORMAL = 'normal',
+    SYSTEM = 'system',
+}

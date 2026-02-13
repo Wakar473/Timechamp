@@ -2,57 +2,82 @@ import {
     Controller,
     Get,
     Post,
-    Put,
+    Patch,
     Delete,
     Body,
     Param,
     UseGuards,
+    Request,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectDto } from './dto/update-project.dto';
+import { CreateProjectDto, UpdateProjectDto, AssignProjectDto } from './dto/project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums';
 
 @Controller('projects')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProjectsController {
     constructor(private readonly projectsService: ProjectsService) { }
 
     @Post()
-    create(
-        @Body() createProjectDto: CreateProjectDto,
-        @CurrentUser() user: any,
-    ) {
-        return this.projectsService.create(
-            createProjectDto,
-            user.userId,
-            user.organizationId,
-        );
+    @Roles(UserRole.ADMIN, UserRole.MANAGER)
+    async create(@Body() createProjectDto: CreateProjectDto, @Request() req) {
+        return this.projectsService.create(createProjectDto, req.user);
     }
 
     @Get()
-    findAll(@CurrentUser() user: any) {
-        return this.projectsService.findAll(user.organizationId);
+    async findAll(@Request() req) {
+        return this.projectsService.findAll(req.user);
+    }
+
+    @Get('system')
+    async getSystemProject(@Request() req) {
+        return this.projectsService.getSystemProject(req.user.organization_id);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.projectsService.findOne(id, user.organizationId);
+    async findOne(@Param('id') projectId: string, @Request() req) {
+        return this.projectsService.findOne(projectId, req.user);
     }
 
-    @Put(':id')
-    update(
-        @Param('id') id: string,
+    @Patch(':id')
+    @Roles(UserRole.ADMIN, UserRole.MANAGER)
+    async update(
+        @Param('id') projectId: string,
         @Body() updateProjectDto: UpdateProjectDto,
-        @CurrentUser() user: any,
+        @Request() req,
     ) {
-        return this.projectsService.update(id, updateProjectDto, user.organizationId);
+        return this.projectsService.update(projectId, updateProjectDto, req.user);
     }
 
     @Delete(':id')
-    async remove(@Param('id') id: string, @CurrentUser() user: any) {
-        await this.projectsService.remove(id, user.organizationId);
-        return { message: 'Project deleted successfully' };
+    @Roles(UserRole.ADMIN)
+    async archive(@Param('id') projectId: string, @Request() req) {
+        await this.projectsService.archive(projectId, req.user);
+        return { message: 'Project archived successfully' };
+    }
+
+    @Post(':id/assign')
+    @Roles(UserRole.ADMIN, UserRole.MANAGER)
+    async assignUsers(
+        @Param('id') projectId: string,
+        @Body() assignDto: AssignProjectDto,
+        @Request() req,
+    ) {
+        await this.projectsService.assignUsersToProject(projectId, assignDto, req.user);
+        return { message: 'Users assigned successfully' };
+    }
+
+    @Delete(':id/assign/:userId')
+    @Roles(UserRole.ADMIN, UserRole.MANAGER)
+    async removeUser(
+        @Param('id') projectId: string,
+        @Param('userId') userId: string,
+        @Request() req,
+    ) {
+        await this.projectsService.removeUserFromProject(projectId, userId, req.user);
+        return { message: 'User removed from project successfully' };
     }
 }

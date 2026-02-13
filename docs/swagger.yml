@@ -1,0 +1,472 @@
+openapi: 3.0.0
+info:
+  title: WorkPulse API
+  description: Multi-Tenant Real-Time Workforce Productivity SaaS API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: http://{your_ip}:3000
+    description: LAN Access
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, enum: [admin, manager, employee] }
+        status: { type: string, enum: [active, inactive, suspended] }
+        organization_id: { type: string, format: uuid }
+        manager_id: { type: string, format: uuid, nullable: true }
+        last_seen: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        organization_id: { type: string, format: uuid }
+        created_by: { type: string, format: uuid }
+        project_type: { type: string, enum: [normal, system] }
+        is_active: { type: boolean }
+        archived_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    WorkSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        project_id: { type: string, format: uuid }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time, nullable: true }
+        total_active_seconds: { type: integer }
+        total_idle_seconds: { type: integer }
+        status: { type: string, enum: [active, stopped] }
+        last_activity_at: { type: string, format: date-time, nullable: true }
+
+    Alert:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid, nullable: true }
+        type: { type: string, enum: [idle, overtime] }
+        message: { type: string }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        resolved_by: { type: string, format: uuid, nullable: true }
+
+    Error:
+      type: object
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+        path: { type: string }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user (and organization)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name, organization_name]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                name: { type: string }
+                organization_name: { type: string }
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  access_token: { type: string }
+
+  /auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  access_token: { type: string }
+
+  /users:
+    get:
+      summary: List users (role-scoped)
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+
+  /users/online:
+    get:
+      summary: List online users (role-scoped)
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+
+  /users/assignable:
+    get:
+      summary: List assignable employees for projects
+      description: Returns active employees - Admin sees all, Manager sees team members only
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+
+  /users/invite:
+    post:
+      summary: Invite new user
+      description: Admin can invite anyone to any team. Manager can only invite employees to their own team (manager_id auto-set).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, name, role]
+              properties:
+                email: { type: string }
+                name: { type: string }
+                role: { type: string, enum: [admin, manager, employee] }
+                manager_id: { type: string, format: uuid }
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /users/{id}:
+    get:
+      summary: Get user details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /users/{id}/role:
+    patch:
+      summary: Update user role (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [admin, manager, employee] }
+      responses:
+        200:
+          description: OK
+
+  /projects:
+    get:
+      summary: List projects (role-scoped)
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+    post:
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+
+  /projects/system:
+    get:
+      summary: Get organization system project
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+
+  /projects/{id}:
+    get:
+      summary: Get project details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+    patch:
+      summary: Update project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        200:
+          description: OK
+    delete:
+      summary: Archive project (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+
+  /projects/{id}/assign:
+    post:
+      summary: Assign users to project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_ids]
+              properties:
+                user_ids: { type: array, items: { type: string, format: uuid } }
+      responses:
+        200:
+          description: OK
+
+  /projects/{id}/assign/{userId}:
+    delete:
+      summary: Remove user from project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+
+  /sessions/start:
+    post:
+      summary: Start work session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id]
+              properties:
+                project_id: { type: string, format: uuid }
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkSession' }
+
+  /sessions/{id}/stop:
+    post:
+      summary: Stop work session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+
+  /sessions/active:
+    get:
+      summary: List active sessions (role-scoped)
+      responses:
+        200:
+          description: OK
+
+  /sessions/active/mine:
+    get:
+      summary: Get current user active session
+      responses:
+        200:
+          description: OK
+
+  /sessions/{id}/activity:
+    post:
+      summary: Log activity (Rate-limited: 1/10s)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string, enum: [active, idle] }
+                appName: { type: string }
+                windowTitle: { type: string }
+                url: { type: string }
+      responses:
+        201:
+          description: Created
+
+  /alerts:
+    get:
+      summary: List alerts (role-scoped)
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Alert' }
+
+  /alerts/{id}/resolve:
+    patch:
+      summary: Resolve alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: OK
+
+  /reports/daily:
+    get:
+      summary: Get daily summaries
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        200:
+          description: OK
+
+  /reports/organization/analytics:
+    get:
+      summary: Organization-wide analytics (Admin only)
+      responses:
+        200:
+          description: OK
+
+  /reports/team/analytics:
+    get:
+      summary: Team analytics (Manager only)
+      responses:
+        200:
+          description: OK
+
+  /health:
+    get:
+      summary: API Health Check
+      security: []
+      responses:
+        200:
+          description: OK

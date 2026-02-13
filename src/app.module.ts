@@ -12,6 +12,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { HealthModule } from './modules/health/health.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { UsersModule } from './modules/users/users.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -38,6 +39,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
             }),
         }),
         AuthModule,
+        UsersModule,
         SessionsModule,
         ActivityModule,
         ProjectsModule,

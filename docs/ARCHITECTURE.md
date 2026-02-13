@@ -17,12 +17,15 @@
 
 ### Key Capabilities:
 - ✅ Multi-tenant architecture (multiple organizations)
-- ✅ Real-time work session tracking
+- ✅ **Hierarchical Role-Based Access Control** (Admin, Manager, Employee)
+- ✅ **Team Boundaries** (Managers isolated to their team members)
+- ✅ **System Project Fallback** (Auto-assigned to new employees)
+- ✅ Real-time work session tracking with project assignment
 - ✅ Activity logging with idle/active detection
 - ✅ WebSocket-based real-time updates
 - ✅ Background job processing for analytics
 - ✅ Concurrency-safe session updates (optimistic locking)
-- ✅ JWT-based authentication with role-based access control
+- ✅ JWT-based authentication
 
 ---
 
@@ -136,7 +139,8 @@ graph TB
 **Features**:
 - Start/stop work sessions
 - Automatic session tracking
-- Project association (optional)
+- **Mandatory project association** (defaults to system project)
+- Project assignment validation
 - Optimistic locking to prevent data corruption
 
 **How it works**:
@@ -245,7 +249,7 @@ User idle 5min → Emit INACTIVE_ALERT to managers
 
 ## Database Schema
 
-### Tables (7 total)
+### Tables (8 total)
 
 #### 1. `organizations`
 Stores company/organization data
@@ -261,6 +265,7 @@ Employee accounts
 ```sql
 - id (uuid, PK)
 - organization_id (uuid, FK)
+- manager_id (uuid, FK, nullable) - Link to reporting manager
 - email (varchar, unique per org)
 - password_hash (varchar)
 - name (varchar)
@@ -278,10 +283,23 @@ Optional project tracking
 - name (varchar)
 - description (text)
 - created_by (uuid, FK to users)
+- project_type (enum: normal, system)
+- is_active (boolean) - for archiving
+- archived_at (timestamp, nullable)
 - created_at (timestamp)
 ```
 
-#### 4. `work_sessions`
+#### 4. `project_assignments` (NEW)
+Junction table for many-to-many user-project mapping
+```sql
+- id (uuid, PK)
+- user_id (uuid, FK)
+- project_id (uuid, FK)
+- assigned_by (uuid, FK)
+- assigned_at (timestamp)
+```
+
+#### 5. `work_sessions`
 Work time tracking
 ```sql
 - id (uuid, PK)
@@ -298,7 +316,7 @@ Work time tracking
 - created_at (timestamp)
 ```
 
-#### 5. `activity_logs`
+#### 6. `activity_logs`
 Detailed activity records
 ```sql
 - id (uuid, PK)
@@ -310,7 +328,7 @@ Detailed activity records
 - url (text, nullable)
 ```
 
-#### 6. `daily_summaries`
+#### 7. `daily_summaries`
 Daily aggregated stats
 ```sql
 - id (uuid, PK)
@@ -324,13 +342,16 @@ Daily aggregated stats
 - created_at (timestamp)
 ```
 
-#### 7. `alerts`
+#### 8. `alerts`
 System alerts
 ```sql
 - id (uuid, PK)
+- organization_id (uuid, FK)
 - user_id (uuid, FK)
+- session_id (uuid, FK, nullable)
 - type (enum: idle, overtime)
 - message (text)
+- resolved_by (uuid, FK, nullable)
 - created_at (timestamp)
 - resolved_at (timestamp, nullable)
 ```
@@ -341,14 +362,19 @@ organizations (1) ──→ (N) users
 organizations (1) ──→ (N) projects
 organizations (1) ──→ (N) work_sessions
 organizations (1) ──→ (N) daily_summaries
+organizations (1) ──→ (N) alerts
 
+users (1) ──→ (N) team_members (self-join)
+users (1) ──→ (N) project_assignments
 users (1) ──→ (N) work_sessions
 users (1) ──→ (N) daily_summaries
 users (1) ──→ (N) alerts
 
+projects (1) ──→ (N) project_assignments
 projects (1) ──→ (N) work_sessions
 
 work_sessions (1) ──→ (N) activity_logs
+work_sessions (1) ──→ (N) alerts
 ```
 
 ---
@@ -380,34 +406,46 @@ workpulse/
 │   │   ├── daily-summary.entity.ts
 │   │   └── alert.entity.ts
 │   │
-│   ├── modules/                   # Feature modules
-│   │   ├── auth/                  # Authentication
-│   │   │   ├── auth.module.ts
-│   │   │   ├── auth.service.ts
-│   │   │   ├── auth.controller.ts
-│   │   │   ├── strategies/        # Passport strategies
-│   │   │   └── dto/               # Data transfer objects
-│   │   │
-│   │   ├── sessions/              # Work session management
-│   │   │   ├── sessions.module.ts
-│   │   │   ├── sessions.service.ts
-│   │   │   ├── sessions.controller.ts
-│   │   │   └── dto/
-│   │   │
-│   │   ├── activity/              # Activity logging
-│   │   │   ├── activity.module.ts
-│   │   │   ├── activity.service.ts
-│   │   │   ├── activity.controller.ts
-│   │   │   └── dto/
-│   │   │
-│   │   ├── websocket/             # Real-time events
-│   │   │   ├── websocket.module.ts
-│   │   │   ├── websocket.gateway.ts
-│   │   │   └── websocket.service.ts
-│   │   │
-│   │   └── health/                # Health checks
-│   │       ├── health.module.ts
-│   │       └── health.controller.ts
+│    ├── modules/                   # Feature modules
+    │   ├── auth/                  # Authentication
+    │   │   ├── auth.module.ts
+    │   │   ├── auth.service.ts
+    │   │   ├── auth.controller.ts
+    │   │   ├── strategies/        # Passport strategies
+    │   │   └── dto/               # Data transfer objects
+    │   │
+    │   ├── users/                 # User management (RBAC)
+    │   │   ├── users.module.ts
+    │   │   ├── users.service.ts
+    │   │   ├── users.controller.ts
+    │   │   └── dto/
+    │   │
+    │   ├── projects/              # Project management
+    │   │   ├── projects.module.ts
+    │   │   ├── projects.service.ts
+    │   │   ├── projects.controller.ts
+    │   │   └── dto/
+    │   │
+    │   ├── sessions/              # Work session management
+    │   │   ├── sessions.module.ts
+    │   │   ├── sessions.service.ts
+    │   │   ├── sessions.controller.ts
+    │   │   └── dto/
+    │   │
+    │   ├── activity/              # Activity logging
+    │   │   ├── activity.module.ts
+    │   │   ├── activity.service.ts
+    │   │   ├── activity.controller.ts
+    │   │   └── dto/
+    │   │
+    │   ├── websocket/             # Real-time events
+    │   │   ├── websocket.module.ts
+    │   │   ├── websocket.gateway.ts
+    │   │   └── websocket.service.ts
+    │   │
+    │   └── health/                # Health checks
+    │       ├── health.module.ts
+    │       └── health.controller.ts
 │   │
 │   ├── jobs/                      # Background job processors
 │   │   ├── daily-summary.processor.ts

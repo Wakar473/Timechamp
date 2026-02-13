@@ -27,10 +27,18 @@
 
 4. **[docs/ARCHITECTURE.md](./ARCHITECTURE.md)** - System Documentation
    - Complete architecture diagram
-   - All 7 database tables explained
+   - All 8 database tables explained
    - How each feature works
    - Technology stack details
    - Performance & security notes
+
+5. **[docs/swagger.yml](./swagger.yml)** - OpenAPI 3.0 Specification
+   - Machine-readable API definition
+   - Interactive documentation via Swagger Editor
+
+6. **[docs/ACCESS_CONTROL.md](./ACCESS_CONTROL.md)** - RBAC Guide
+   - Role permissions matrix
+   - Team boundary rules
 
 ---
 
@@ -67,23 +75,36 @@ http://10.10.0.43:3000
 
 ## 🔌 All API Endpoints
 
-### Authentication
+### Users Management
 ```http
-POST /auth/register  # Register user
-POST /auth/login     # Login user
+GET  /users              # List users (role-scoped)
+GET  /users/online       # Online users (last 5 min)
+GET  /users/assignable   # Employees for project assignment
+POST /users/invite       # Invite user (admin: any team, manager: own team)
+PATCH /users/:id/role    # Update role (admin only)
+PATCH /users/:id/status  # Enable/disable (admin only)
+PATCH /users/:id/manager # Reassign manager (admin only)
+GET  /users/:id          # Get user details
+```
+
+### Projects
+```http
+GET    /projects              # List projects (role-scoped)
+GET    /projects/system       # Get system project
+POST   /projects              # Create project
+GET    /projects/:id          # Get project details
+PATCH  /projects/:id          # Update project
+DELETE /projects/:id          # Archive project (admin only)
+POST   /projects/:id/assign   # Assign users to project
+DELETE /projects/:id/assign/:userId  # Remove user from project
 ```
 
 ### Work Sessions
 ```http
-POST /sessions/start          # Start work
-POST /sessions/:id/stop       # Stop work
-GET  /sessions/active         # Get active sessions
-```
-
-### Activity Logging
-```http
-POST /sessions/:id/activity   # Log activity
-POST /activity/batch          # Batch log (desktop agent)
+POST /sessions/start          # Start work session (project required)
+POST /sessions/:id/stop       # Stop work session
+GET  /sessions/active         # Get active sessions (role-scoped)
+POST /sessions/:id/activity   # Log activity (rate-limited: 1/10s)
 ```
 
 ### Health
@@ -127,12 +148,13 @@ GET /health                   # Check API health
 ## 📊 Database Tables (7 Total)
 
 1. **organizations** - Companies/tenants
-2. **users** - Employee accounts
-3. **projects** - Optional project tracking
-4. **work_sessions** - Work time tracking (with optimistic locking)
-5. **activity_logs** - Detailed activity records
-6. **daily_summaries** - Daily aggregated stats
-7. **alerts** - System alerts (idle, overtime)
+2. **users** - Employee accounts with manager hierarchy
+3. **projects** - Normal and system projects
+4. **project_assignments** - Junction table for user-project mapping
+5. **work_sessions** - Work time tracking (with optimistic locking)
+6. **activity_logs** - Detailed activity records
+7. **daily_summaries** - Daily aggregated stats
+8. **alerts** - System alerts (idle, overtime) with resolution tracking
 
 **Full schema:** [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -163,7 +185,9 @@ GET /health                   # Check API health
 
 ### 5. Multi-tenant Architecture
 - Each organization has isolated data
-- Role-based access (Admin, Manager, Employee)
+- **Hierarchical Role-Based Access Control** (Admin, Manager, Employee)
+- **Team isolation** for managers
+- **System Project fallback** logic
 - JWT tokens include organization context
 
 **Detailed explanations:** [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -201,17 +225,14 @@ node test/test-activity-load.js
 workpulse/
 ├── docs/                    # 📚 All documentation
 │   ├── API.md              # API reference
+│   ├── swagger.yml         # OpenAPI 3.0 spec (NEW)
+│   ├── ACCESS_CONTROL.md   # RBAC guide (NEW)
 │   ├── LAN_SETUP.md        # Frontend setup guide
 │   └── ARCHITECTURE.md     # System design
 │
 ├── src/
-│   ├── entities/           # Database models (7 tables)
-│   ├── modules/            # Feature modules
-│   │   ├── auth/          # Authentication
-│   │   ├── sessions/      # Work sessions
-│   │   ├── activity/      # Activity logging
-│   │   ├── websocket/     # Real-time events
-│   │   └── health/        # Health checks
+│   ├── entities/           # Database models (8 tables)
+│   ├── modules/            # Feature modules (RBAC enabled)
 │   ├── jobs/              # Background workers
 │   ├── migrations/        # Database migrations
 │   └── config/            # Configuration

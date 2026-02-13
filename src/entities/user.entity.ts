@@ -8,6 +8,7 @@ export { UserRole, UserStatus };
 
 @Entity('users')
 @Index(['organization_id', 'email'], { unique: true })
+@Index(['manager_id'])
 export class User {
     @PrimaryGeneratedColumn('uuid')
     id: string;
@@ -30,6 +31,9 @@ export class User {
     @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
     status: UserStatus;
 
+    @Column({ type: 'uuid', nullable: true })
+    manager_id: string;
+
     @Column({ type: 'timestamp', nullable: true })
     last_seen: Date;
 
@@ -38,6 +42,12 @@ export class User {
 
     @ManyToOne('Organization', 'users')
     organization: Organization;
+
+    @ManyToOne('User', 'team_members', { nullable: true })
+    manager: User;
+
+    @OneToMany('User', 'manager')
+    team_members: User[];
 
     @OneToMany('WorkSession', 'user')
     work_sessions: WorkSession[];

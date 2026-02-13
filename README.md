@@ -1,6 +1,6 @@
-# WorkPulse - Employee Monitoring SaaS Platform
+# WorkPulse - Multi-Tenant Employee Monitoring SaaS Platform
 
-A production-ready, multi-tenant employee monitoring platform built with NestJS, PostgreSQL, Redis, and Socket.IO.
+A production-ready, multi-tenant employee monitoring platform with **role-based access control**, **hierarchical team management**, and **real-time tracking**. Built with NestJS, PostgreSQL, Redis, and Socket.IO.
 
 ## 🚀 Quick Start
 
@@ -58,18 +58,51 @@ npm run start:worker
 ## 📚 Documentation
 
 - **[API Reference](docs/API.md)** - Complete API endpoints documentation
+- **[OpenAPI/Swagger](docs/swagger.yml)** - Import into Swagger Editor for interactive docs
+- **[Access Control Guide](docs/ACCESS_CONTROL.md)** - Role-based permissions matrix
 - **[LAN Setup Guide](docs/LAN_SETUP.md)** - Connect frontend team via LAN
 - **[Architecture](docs/ARCHITECTURE.md)** - System design & how it works
 
 ## ✨ Features
 
-- ✅ **Multi-tenant Architecture** - Support multiple organizations
-- ✅ **Work Session Tracking** - Start/stop work sessions with optimistic locking
+### Core Features
+- ✅ **Multi-tenant Architecture** - Complete organization isolation
+- ✅ **Role-Based Access Control (RBAC)** - Admin, Manager, Employee roles
+- ✅ **Hierarchical Team Management** - Manager-employee team structure
+- ✅ **Work Session Tracking** - Start/stop sessions with project assignment
 - ✅ **Activity Logging** - Track active/idle time with app names and URLs
 - ✅ **Real-time Updates** - WebSocket events for live dashboard updates
 - ✅ **Background Jobs** - Daily summaries, idle detection, overtime alerts
-- ✅ **JWT Authentication** - Secure token-based auth with role-based access
+- ✅ **JWT Authentication** - Secure token-based auth
 - ✅ **Health Checks** - Monitor database and Redis connectivity
+
+### Role-Based Features
+
+**Admin:**
+- Full organization control
+- Invite users (admin/manager/employee) to any team
+- Manage all projects and users
+- View organization-wide analytics
+- Change roles and permissions
+
+**Manager:**
+- Invite employees to their own team
+- Create and manage team projects
+- Assign team members to projects
+- View team analytics
+- Monitor team activity
+
+**Employee:**
+- Start/stop work sessions on assigned projects
+- Log activity (active/idle time)
+- View personal reports
+- Access assigned projects
+
+### System Features
+- ✅ **System Project Fallback** - "Internal / Training" auto-assigned to all employees
+- ✅ **Team Boundary Enforcement** - Managers isolated to their teams
+- ✅ **Project Assignment Tracking** - Many-to-many user-project relationships
+- ✅ **Online Presence Tracking** - Real-time user status
 
 ## 🏗️ Tech Stack
 
@@ -87,15 +120,40 @@ npm run start:worker
 
 ### Authentication
 ```http
-POST /auth/register  # Register new user
+POST /auth/register  # Register organization & admin
 POST /auth/login     # Login user
+```
+
+### Users Management
+```http
+GET  /users              # List users (role-scoped)
+GET  /users/online       # Online users (last 5 min)
+GET  /users/assignable   # Employees for project assignment
+POST /users/invite       # Invite user (admin: any team, manager: own team)
+PATCH /users/:id/role    # Update role (admin only)
+PATCH /users/:id/status  # Enable/disable (admin only)
+PATCH /users/:id/manager # Reassign manager (admin only)
+GET  /users/:id          # Get user details
+```
+
+### Projects
+```http
+GET    /projects              # List projects (role-scoped)
+GET    /projects/system       # Get system project
+POST   /projects              # Create project
+GET    /projects/:id          # Get project details
+PATCH  /projects/:id          # Update project
+DELETE /projects/:id          # Archive project (admin only)
+POST   /projects/:id/assign   # Assign users to project
+DELETE /projects/:id/assign/:userId  # Remove user from project
 ```
 
 ### Work Sessions
 ```http
-POST /sessions/start          # Start work session
+POST /sessions/start          # Start work session (project required)
 POST /sessions/:id/stop       # Stop work session
-GET  /sessions/active         # Get active sessions
+GET  /sessions/active         # Get active sessions (role-scoped)
+POST /sessions/:id/activity   # Log activity (rate-limited: 1/10s)
 ```
 
 ### Activity Logging
@@ -213,26 +271,50 @@ docker compose up --build -d
 docker compose down -v
 ```
 
-## 📊 Project Structure
+## 📁 Project Structure
 
 ```
 workpulse/
 ├── src/
-│   ├── main.ts              # API entry point
-│   ├── worker.ts            # Worker entry point
-│   ├── entities/            # Database models
-│   ├── modules/             # Feature modules
-│   │   ├── auth/            # Authentication
-│   │   ├── sessions/        # Work sessions
-│   │   ├── activity/        # Activity logging
-│   │   ├── websocket/       # Real-time events
-│   │   └── health/          # Health checks
-│   ├── jobs/                # Background jobs
-│   ├── migrations/          # Database migrations
-│   └── config/              # Configuration
-├── docs/                    # Documentation
-├── test/                    # Tests
-└── docker-compose.yml       # Docker orchestration
+│   ├── modules/
+│   │   ├── auth/              # JWT authentication
+│   │   ├── users/             # User management (NEW - RBAC)
+│   │   ├── projects/          # Project management (ENHANCED)
+│   │   ├── sessions/          # Work session tracking
+│   │   ├── activity/          # Activity logging
+│   │   ├── reports/           # Analytics & reports
+│   │   ├── websocket/         # Real-time events
+│   │   ├── jobs/              # Background processors
+│   │   └── health/            # Health checks
+│   ├── entities/
+│   │   ├── user.entity.ts             # User with manager hierarchy
+│   │   ├── organization.entity.ts     # Multi-tenant container
+│   │   ├── project.entity.ts          # Projects with types
+│   │   ├── project-assignment.entity.ts  # User-project mapping (NEW)
+│   │   ├── work-session.entity.ts     # Session tracking
+│   │   ├── activity-log.entity.ts     # Activity records
+│   │   ├── alert.entity.ts            # Idle/overtime alerts
+│   │   └── daily-summary.entity.ts    # Daily aggregates
+│   ├── common/
+│   │   ├── guards/
+│   │   │   ├── jwt-auth.guard.ts      # JWT validation
+│   │   │   ├── roles.guard.ts         # Role-based access (NEW)
+│   │   │   └── team-boundary.guard.ts # Manager team isolation (NEW)
+│   │   ├── decorators/
+│   │   │   ├── current-user.decorator.ts
+│   │   │   └── roles.decorator.ts     # Role metadata (NEW)
+│   │   ├── utils/
+│   │   │   └── query-filter.util.ts   # Role-based filters (NEW)
+│   │   └── enums.ts                   # UserRole, ProjectType, etc.
+│   └── main.ts
+├── docs/
+│   ├── API.md                 # API documentation
+│   ├── swagger.yml            # OpenAPI 3.0 spec (NEW)
+│   ├── ACCESS_CONTROL.md      # RBAC guide (NEW)
+│   ├── LAN_SETUP.md          # Network setup
+│   └── ARCHITECTURE.md        # System design
+├── docker-compose.yml
+└── package.json
 ```
 
 ## 🔐 Security
