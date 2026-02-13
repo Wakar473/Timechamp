@@ -8,6 +8,7 @@ export { UserRole, UserStatus };
 
 @Entity('users')
 @Index(['organization_id', 'email'], { unique: true })
+@Index(['organization_id', 'employee_id'], { unique: true })
 @Index(['manager_id'])
 export class User {
     @PrimaryGeneratedColumn('uuid')
@@ -22,8 +23,14 @@ export class User {
     @Column({ type: 'varchar', length: 255 })
     password_hash: string;
 
-    @Column({ type: 'varchar', length: 255 })
-    name: string;
+    @Column({ type: 'varchar', length: 100 })
+    first_name: string;
+
+    @Column({ type: 'varchar', length: 100 })
+    last_name: string;
+
+    @Column({ type: 'varchar', length: 50 })
+    employee_id: string;
 
     @Column({ type: 'enum', enum: UserRole, default: UserRole.EMPLOYEE })
     role: UserRole;

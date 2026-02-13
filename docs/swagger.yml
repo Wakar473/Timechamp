@@ -22,7 +22,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
-        name: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        employee_id: { type: string }
         role: { type: string, enum: [admin, manager, employee] }
         status: { type: string, enum: [active, inactive, suspended] }
         organization_id: { type: string, format: uuid }
@@ -84,7 +86,10 @@ security:
 paths:
   /auth/register:
     post:
-      summary: Register new user (and organization)
+      summary: Register new user (and optionally create organization)
+      description: |
+        **Option 1**: Create new organization - provide `organization_name` (first user becomes admin)
+        **Option 2**: Join existing organization - provide `organization_id`
       security: []
       requestBody:
         required: true
@@ -92,12 +97,36 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, name, organization_name]
+              required: [email, password, name]
               properties:
-                email: { type: string }
-                password: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
                 name: { type: string }
-                organization_name: { type: string }
+                organization_name: { type: string, description: "Create new organization (mutually exclusive with organization_id)" }
+                organization_id: { type: string, format: uuid, description: "Join existing organization (mutually exclusive with organization_name)" }
+                role: { type: string, enum: [admin, manager, employee], description: "Optional role (auto-assigned to admin for new orgs)" }
+            examples:
+              newOrganization:
+                summary: Create new organization
+                value:
+                  email: admin@example.com
+                  password: SecurePass123
+                  confirm_password: SecurePass123
+                  first_name: John
+                  last_name: Doe
+                  employee_id: EMP001
+                  organization_name: Acme Corp
+              existingOrganization:
+                summary: Join existing organization
+                value:
+                  email: employee@example.com
+                  password: SecurePass123
+                  confirm_password: SecurePass123
+                  first_name: Jane
+                  last_name: Smith
+                  employee_id: EMP002
+                  organization_id: 7d100adb-88bb-48fe-88fc-5193b3e89dfb
+                  role: employee
       responses:
         201:
           description: Created
@@ -111,7 +140,7 @@ paths:
 
   /auth/login:
     post:
-      summary: Login
+      summary: Login to existing organization
       security: []
       requestBody:
         required: true
@@ -121,8 +150,11 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string }
+                email: { type: string, format: email }
                 password: { type: string }
+            example:
+              email: admin@example.com
+              password: SecurePass123
       responses:
         200:
           description: OK
@@ -133,6 +165,58 @@ paths:
                 properties:
                   user: { $ref: '#/components/schemas/User' }
                   access_token: { type: string }
+
+  /auth/password:
+    put:
+      summary: Change own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password, confirm_password]
+              properties:
+                old_password: { type: string }
+                new_password: { type: string, minLength: 8 }
+                confirm_password: { type: string, minLength: 8 }
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+
+  /auth/reset-password/{userId}:
+    put:
+      summary: Admin resets user password
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_password, confirm_password]
+              properties:
+                new_password: { type: string, minLength: 8 }
+                confirm_password: { type: string, minLength: 8 }
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
 
   /users:
     get:

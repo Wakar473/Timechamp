@@ -28,23 +28,142 @@ Authorization: Bearer <your_jwt_token>
 
 ### 1. Authentication
 
-#### Register Organization & Admin
-`POST /auth/register`
+#### Register New Organization & Admin
+**Endpoint**: `POST /auth/register`
+
+**Full URL for Postman**: `http://10.10.0.43:3000/auth/register`
+
+**Use Case**: Create a new organization and the first admin user.
+
+**Request Body**:
 ```json
 {
   "email": "admin@example.com",
   "password": "SecurePass123",
-  "name": "Admin Name",
+  "confirm_password": "SecurePass123",
+  "first_name": "John",
+  "last_name": "Doe",
+  "employee_id": "EMP001",
   "organization_name": "Acme Corp"
 }
 ```
 
-#### Login
-`POST /auth/login`
+**Response** (200 OK):
 ```json
 {
-  "email": "user@example.com",
+  "user": {
+    "id": "uuid",
+    "email": "admin@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "employee_id": "EMP001",
+    "role": "admin",
+    "organization_id": "uuid",
+    "status": "active"
+  },
+  "access_token": "eyJhbGciOi..."
+}
+```
+
+**What Happens**:
+- ✅ Creates new organization "Acme Corp"
+- ✅ Creates admin user with full permissions
+- ✅ Auto-creates "Internal / Training" system project
+- ✅ Auto-assigns admin to system project
+- ✅ Returns JWT token for immediate use
+
+---
+
+#### Register User to Existing Organization
+**Endpoint**: `POST /auth/register`
+
+**Full URL for Postman**: `http://10.10.0.43:3000/auth/register`
+
+**Use Case**: Add a new user to an existing organization (requires organization_id).
+
+**Request Body**:
+```json
+{
+  "email": "employee@example.com",
+  "password": "SecurePass123",
+  "confirm_password": "SecurePass123",
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "employee_id": "EMP002",
+  "organization_id": "7d100adb-88bb-48fe-88fc-5193b3e89dfb",
+  "role": "employee"
+}
+```
+
+---
+
+#### Login
+**Endpoint**: `POST /auth/login`
+
+**Full URL for Postman**: `http://10.10.0.43:3000/auth/login`
+
+**Request Body** (No organization_id needed):
+```json
+{
+  "email": "admin@example.com",
   "password": "SecurePass123"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "user": { ... },
+  "access_token": "eyJhbGciOi..."
+}
+```
+
+---
+
+#### Change Password
+**Endpoint**: `PUT /auth/password`
+
+**Full URL for Postman**: `http://10.10.0.43:3000/auth/password`
+
+**Auth Required**: Yes (All users)
+
+**Request Body**:
+```json
+{
+  "old_password": "SecurePass123",
+  "new_password": "NewSecurePass456",
+  "confirm_password": "NewSecurePass456"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+---
+
+#### Reset User Password (Admin Only)
+**Endpoint**: `PUT /auth/reset-password/:userId`
+
+**Full URL for Postman**: `http://10.10.0.43:3000/auth/reset-password/USER_UUID`
+
+**Auth Required**: Yes (Admin only)
+
+**Request Body**:
+```json
+{
+  "new_password": "ResetPass789",
+  "confirm_password": "ResetPass789"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Password reset successfully"
 }
 ```
 

@@ -51,7 +51,7 @@ export class UsersService {
     async getTeamMembers(managerId: string): Promise<User[]> {
         return await this.userRepository.find({
             where: { manager_id: managerId },
-            select: ['id', 'email', 'name', 'role', 'status', 'last_seen', 'created_at'],
+            select: ['id', 'email', 'first_name', 'last_name', 'employee_id', 'role', 'status', 'last_seen', 'created_at'],
             order: { created_at: 'DESC' },
         });
     }
@@ -67,7 +67,7 @@ export class UsersService {
             .where('user.organization_id = :organizationId', { organizationId })
             .andWhere('user.last_seen > :fiveMinutesAgo', { fiveMinutesAgo })
             .andWhere('user.status = :status', { status: UserStatus.ACTIVE })
-            .select(['user.id', 'user.email', 'user.name', 'user.role', 'user.last_seen']);
+            .select(['user.id', 'user.email', 'user.first_name', 'user.last_name', 'user.employee_id', 'user.role', 'user.last_seen']);
 
         // Apply role-based filtering
         if (currentUserRole === UserRole.MANAGER) {
@@ -173,13 +173,27 @@ export class UsersService {
             throw new BadRequestException('User with this email already exists in your organization');
         }
 
+        // Check employee_id uniqueness
+        const existingEmployeeId = await this.userRepository.findOne({
+            where: {
+                organization_id: invitedBy.organization_id,
+                employee_id: inviteDto.employee_id,
+            },
+        });
+
+        if (existingEmployeeId) {
+            throw new BadRequestException('Employee ID already exists in your organization');
+        }
+
         // Generate temporary password
         const tempPassword = Math.random().toString(36).slice(-10);
         const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
         const newUser = this.userRepository.create({
             email: inviteDto.email,
-            name: inviteDto.name,
+            first_name: inviteDto.first_name,
+            last_name: inviteDto.last_name,
+            employee_id: inviteDto.employee_id,
             role: inviteDto.role,
             password_hash: hashedPassword,
             organization_id: invitedBy.organization_id,

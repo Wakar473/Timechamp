@@ -39,6 +39,22 @@ export class ProjectsService {
     }
 
     /**
+     * Create system project for a new organization
+     */
+    async createSystemProject(organizationId: string, createdBy: string): Promise<Project> {
+        const project = this.projectRepository.create({
+            name: 'Internal / Training',
+            description: 'Default project for onboarding and internal tasks',
+            organization_id: organizationId,
+            created_by: createdBy,
+            project_type: ProjectType.SYSTEM,
+            is_active: true,
+        });
+
+        return await this.projectRepository.save(project);
+    }
+
+    /**
      * Get projects with role-based filtering
      */
     async findAll(user: User): Promise<Project[]> {
